@@ -4,20 +4,17 @@ import {
   Text,
   TextInput,
   Pressable,
-  Alert,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
   ActivityIndicator,
-  Dimensions
 } from 'react-native';
 import { useAuth } from '../_layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link, useRouter } from 'expo-router';
+import { Link } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = 'http://localhost:5500/api/users'; // Replace with your API URL
 
@@ -28,7 +25,6 @@ const LoginScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const { signIn } = useAuth();
-  const router = useRouter();
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -69,15 +65,9 @@ const LoginScreen = () => {
         throw new Error(data.message || 'Invalid email or password');
       }
 
-      // Store user data
-      await AsyncStorage.multiSet([
-        ['userToken', data.token],
-        ['userData', JSON.stringify(data.user)]
-      ]);
-
-      // Sign in and navigate
-      await signIn(data.token);
-      router.replace('/(tabs)/home');
+      // Sign in with token and user data
+      await signIn(data.token, data.user);
+      // Navigation is handled by the useProtectedRoute hook
 
     } catch (error) {
       setError(error.message || 'Login failed. Please try again.');
@@ -100,7 +90,7 @@ const LoginScreen = () => {
         style={styles.keyboardContainer}
       >
         <View style={styles.header}>
-          <Link href="/" asChild>
+          <Link href="/(auth)/welcome" asChild>
             <TouchableOpacity style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color="#555" />
             </TouchableOpacity>
@@ -193,7 +183,7 @@ const LoginScreen = () => {
         </View>
 
         <View style={styles.footer}>
-          <Link href="/signup" asChild>
+          <Link href="/(auth)/signup" asChild>
             <TouchableOpacity style={styles.signupLink} disabled={isLoading}>
               <Text style={styles.signupText}>
                 Don't have an account? <Text style={styles.signupBold}>Sign Up</Text>

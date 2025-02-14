@@ -4,8 +4,8 @@ import { Link, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { useAuth } from '../context/auth';
 
 const API_URL = 'http://localhost:5500/api/users'; // Replace with your actual API URL
 
@@ -19,6 +19,7 @@ const SignUpScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const { signIn } = useAuth();
 
   const validateInputs = () => {
     if (!fullName || !email || !password || !confirmPassword) {
@@ -53,17 +54,19 @@ const SignUpScreen = () => {
         confirmPassword,
       });
 
-      if (response.status === 201) {
-        Alert.alert(
-          'Success',
-          'Account created successfully! Please log in.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/login'),
-            },
-          ]
-        );
+      if (response.status === 201 && response.data.token) {
+        // Extract user data from response
+        const userData = {
+          id: response.data.user.id,
+          email: response.data.user.email,
+          name: response.data.user.fullName,
+        };
+        
+        // Sign in using the auth context
+        await signIn(response.data.token, userData);
+        
+        // Navigate to the main app
+        router.replace('/(tabs)/home');
       }
     } catch (error) {
       setError(error.response?.data?.message || 'An error occurred during sign up');
@@ -75,122 +78,117 @@ const SignUpScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#f7f9fe', '#ebf1fd', '#e2eafc']}
-        style={StyleSheet.absoluteFillObject}
-      />
-      
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardContainer}
+        colors={['#f5f5fa', '#f9f9ff']}
+        style={styles.container}
       >
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardContainer}
         >
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#14142b" />
-            </TouchableOpacity>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Please fill in the form to continue</Text>
-          </View>
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color="#14142b" />
+              </TouchableOpacity>
+              <Text style={styles.title}>Create Account</Text>
+              <Text style={styles.subtitle}>Please fill in the form to continue</Text>
+            </View>
 
-          <View style={styles.formContainer}>
-            {error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+            <View style={styles.formContainer}>
+              {error ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              ) : null}
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={20} color="#6e7191" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Full Name"
+                  placeholderTextColor="#a0a3bd"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  autoCapitalize="words"
+                />
               </View>
-            ) : null}
 
-            <View style={styles.inputContainer}>
-              <Ionicons name="person-outline" size={20} color="#6e7191" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Full Name"
-                value={fullName}
-                onChangeText={setFullName}
-                editable={!isLoading}
-              />
-            </View>
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail-outline" size={20} color="#6e7191" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  placeholderTextColor="#a0a3bd"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
 
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color="#6e7191" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email Address"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                editable={!isLoading}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#6e7191" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                editable={!isLoading}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6e7191" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#6e7191" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm Password"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                editable={!isLoading}
-              />
-              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-                <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6e7191" />
-              </TouchableOpacity>
-            </View>
-
-            <Pressable 
-              onPress={handleSignUp}
-              style={({ pressed }) => [
-                styles.signupButton,
-                pressed && styles.buttonPressed,
-                isLoading && styles.buttonDisabled
-              ]}
-              disabled={isLoading}
-            >
-              <LinearGradient
-                colors={['#6448fe', '#5579ff']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.gradientButton}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text style={styles.signupButtonText}>Sign Up</Text>
-                )}
-              </LinearGradient>
-            </Pressable>
-          </View>
-
-          <View style={styles.footer}>
-            <Text style={styles.loginText}>
-              Already have an account?{' '}
-              <Link href="/login" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.loginBold}>Log In</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color="#6e7191" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor="#a0a3bd"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                  <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6e7191" />
                 </TouchableOpacity>
-              </Link>
-            </Text>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color="#6e7191" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm Password"
+                  placeholderTextColor="#a0a3bd"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                />
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
+                  <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6e7191" />
+                </TouchableOpacity>
+              </View>
+
+              <Pressable
+                onPress={handleSignUp}
+                style={({ pressed }) => [
+                  styles.signupButton,
+                  pressed && styles.buttonPressed,
+                  isLoading && styles.buttonDisabled
+                ]}
+                disabled={isLoading}
+              >
+                <LinearGradient
+                  colors={['#6448fe', '#5579ff']}
+                  style={styles.gradientButton}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.signupButtonText}>Sign Up</Text>
+                  )}
+                </LinearGradient>
+              </Pressable>
+            </View>
+
+            <View style={styles.footer}>
+              <Text style={styles.loginText}>
+                Already have an account?{' '}
+                <Link href="/login" asChild>
+                  <Text style={styles.loginBold}>Log In</Text>
+                </Link>
+              </Text>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
     </SafeAreaView>
   );
 };
