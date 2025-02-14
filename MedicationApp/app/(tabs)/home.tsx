@@ -1,27 +1,117 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+
+// Configure notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 const HomeScreen = () => {
   const [userData, setUserData] = useState(null);
+  const [medications, setMedications] = useState([]);
 
   useEffect(() => {
-    const getUserData = async () => {
+    const initialize = async () => {
+      // Request notification permissions
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Please enable notifications to receive medication reminders');
+      }
+
+      // Load user data
       try {
         const userDataString = await AsyncStorage.getItem('userData');
+        const medicationsString = await AsyncStorage.getItem('medications');
+        
         if (userDataString) {
-          const userData = JSON.parse(userDataString);
-          setUserData(userData);
+          setUserData(JSON.parse(userDataString));
+        }
+        if (medicationsString) {
+          setMedications(JSON.parse(medicationsString));
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        console.error('Error loading data:', error);
       }
     };
 
-    getUserData();
+    initialize();
   }, []);
+
+  const addMedication = async (medicationData) => {
+    try {
+      const newMedication = {
+        id: Date.now().toString(),
+        name: medicationData.name,
+        time: medicationData.time,
+        ...medicationData
+      };
+
+      // Update state
+      const updatedMedications = [...medications, newMedication];
+      setMedications(updatedMedications);
+
+      // Save to AsyncStorage
+      await AsyncStorage.setItem('medications', JSON.stringify(updatedMedications));
+
+      // Schedule notification
+      const [hours, minutes] = medicationData.time.split(':');
+      const trigger = new Date();
+      trigger.setHours(parseInt(hours, 10));
+      trigger.setMinutes(parseInt(minutes, 10));
+      trigger.setSeconds(0);
+
+      // If time has passed for today, schedule for tomorrow
+      if (trigger < new Date()) {
+        trigger.setDate(trigger.getDate() + 1);
+      }
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Medication Reminder',
+          body: `Time to take ${medicationData.name}`,
+          data: { medicationId: newMedication.id },
+        },
+        trigger: {
+          hour: parseInt(hours, 10),
+          minute: parseInt(minutes, 10),
+          repeats: true,
+        },
+      });
+
+      Alert.alert('Success', 'Medication and reminder have been set');
+    } catch (error) {
+      console.error('Error adding medication:', error);
+      Alert.alert('Error', 'Failed to add medication');
+    }
+  };
+
+  const handleMedicationTaken = async (medicationId) => {
+    try {
+      const now = new Date();
+      const activity = {
+        medicationId,
+        timestamp: now.toISOString(),
+      };
+
+      // Save activity
+      const activities = JSON.parse(await AsyncStorage.getItem('medicationActivities') || '[]');
+      activities.push(activity);
+      await AsyncStorage.setItem('medicationActivities', JSON.stringify(activities));
+
+      Alert.alert('Success', 'Medication marked as taken');
+    } catch (error) {
+      console.error('Error recording medication activity:', error);
+      Alert.alert('Error', 'Failed to record medication');
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -37,7 +127,18 @@ const HomeScreen = () => {
 
       {/* Quick Actions Section */}
       <View style={styles.quickActions}>
-        <TouchableOpacity style={styles.actionCard}>
+        <TouchableOpacity 
+          style={styles.actionCard}
+          onPress={() => {
+            // Example medication data - you would typically show a form to collect this
+            addMedication({
+              name: 'Paracetamol',
+              time: '08:00',
+              dosage: '500mg',
+              instructions: 'Take with food'
+            });
+          }}
+        >
           <Ionicons name="add-circle" size={32} color="#6C63FF" />
           <Text style={styles.actionText}>Add Medication</Text>
         </TouchableOpacity>
@@ -50,19 +151,24 @@ const HomeScreen = () => {
       {/* Upcoming Medications Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Upcoming Medications</Text>
-        <View style={styles.medicationCard}>
-          <Image
-            source={require('@/assets/images/logo.jpeg')} // Replace with your image path
-            style={styles.medicationIcon}
-          />
-          <View style={styles.medicationDetails}>
-            <Text style={styles.medicationName}>Paracetamol</Text>
-            <Text style={styles.medicationTime}>8:00 AM</Text>
+        {medications.map(medication => (
+          <View key={medication.id} style={styles.medicationCard}>
+            <Image
+              source={require('@/assets/images/logo.jpeg')}
+              style={styles.medicationIcon}
+            />
+            <View style={styles.medicationDetails}>
+              <Text style={styles.medicationName}>{medication.name}</Text>
+              <Text style={styles.medicationTime}>{medication.time}</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.checkButton}
+              onPress={() => handleMedicationTaken(medication.id)}
+            >
+              <Ionicons name="checkmark-circle" size={24} color="#6C63FF" />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.checkButton}>
-            <Ionicons name="checkmark-circle" size={24} color="#6C63FF" />
-          </TouchableOpacity>
-        </View>
+        ))}
       </View>
 
       {/* Recent Activity Section */}
@@ -76,6 +182,7 @@ const HomeScreen = () => {
     </ScrollView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
