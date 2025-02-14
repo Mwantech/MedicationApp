@@ -1,30 +1,92 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, Alert, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  Alert,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
+  ActivityIndicator,
+  Dimensions
+} from 'react-native';
 import { useAuth } from '../_layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL = 'http://localhost:5500/api/users'; // Replace with your API URL
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const { signIn } = useAuth();
+  const router = useRouter();
+
+  const validateForm = () => {
+    if (!email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!password.trim()) {
+      setError('Password is required');
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    return true;
+  };
 
   const handleLogin = async () => {
     try {
-      if (email && password) {
-        // Simulate API call
-        const token = 'dummy-auth-token';
-        await signIn(token);
-      } else {
-        Alert.alert('Error', 'Please fill in all fields');
+      setError('');
+      if (!validateForm()) return;
+
+      setIsLoading(true);
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Invalid email or password');
       }
+
+      // Store user data
+      await AsyncStorage.multiSet([
+        ['userToken', data.token],
+        ['userData', JSON.stringify(data.user)]
+      ]);
+
+      // Sign in and navigate
+      await signIn(data.token);
+      router.replace('/(tabs)/home');
+
     } catch (error) {
-      Alert.alert('Error', 'Failed to login');
+      setError(error.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const resetError = () => setError('');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -48,32 +110,48 @@ const LoginScreen = () => {
         </View>
 
         <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <View style={[styles.inputContainer, error && error.includes('email') && styles.inputError]}>
             <Ionicons name="mail-outline" size={22} color="#6e7191" style={styles.inputIcon} />
             <TextInput
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                resetError();
+              }}
               placeholder="Email"
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
               style={styles.input}
               placeholderTextColor="#a0a3bd"
+              editable={!isLoading}
             />
           </View>
           
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, error && error.includes('password') && styles.inputError]}>
             <Ionicons name="lock-closed-outline" size={22} color="#6e7191" style={styles.inputIcon} />
             <TextInput
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                resetError();
+              }}
               placeholder="Password"
               secureTextEntry={!showPassword}
               style={styles.input}
               placeholderTextColor="#a0a3bd"
+              editable={!isLoading}
             />
             <TouchableOpacity 
               onPress={() => setShowPassword(!showPassword)}
               style={styles.eyeIcon}
+              disabled={isLoading}
             >
               <Ionicons 
                 name={showPassword ? "eye-off-outline" : "eye-outline"} 
@@ -83,7 +161,10 @@ const LoginScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.forgotPasswordContainer}>
+          <TouchableOpacity 
+            style={styles.forgotPasswordContainer}
+            disabled={isLoading}
+          >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
@@ -91,8 +172,10 @@ const LoginScreen = () => {
             onPress={handleLogin}
             style={({ pressed }) => [
               styles.loginButton,
-              pressed && styles.buttonPressed
+              pressed && styles.buttonPressed,
+              isLoading && styles.buttonDisabled
             ]}
+            disabled={isLoading}
           >
             <LinearGradient
               colors={['#6448fe', '#5579ff']}
@@ -100,14 +183,18 @@ const LoginScreen = () => {
               end={{ x: 1, y: 0 }}
               style={styles.gradientButton}
             >
-              <Text style={styles.loginButtonText}>Log In</Text>
+              {isLoading ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text style={styles.loginButtonText}>Log In</Text>
+              )}
             </LinearGradient>
           </Pressable>
         </View>
 
         <View style={styles.footer}>
           <Link href="/signup" asChild>
-            <TouchableOpacity style={styles.signupLink}>
+            <TouchableOpacity style={styles.signupLink} disabled={isLoading}>
               <Text style={styles.signupText}>
                 Don't have an account? <Text style={styles.signupBold}>Sign Up</Text>
               </Text>
@@ -158,6 +245,16 @@ const styles = StyleSheet.create({
   formContainer: {
     width: '100%',
   },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#c62828',
+    fontSize: 14,
+  },
   inputContainer: {
     backgroundColor: 'white',
     borderRadius: 16,
@@ -170,6 +267,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+  },
+  inputError: {
+    borderWidth: 1,
+    borderColor: '#c62828',
   },
   inputIcon: {
     paddingHorizontal: 12,
@@ -208,6 +309,9 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.9,
     transform: [{ scale: 0.98 }],
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   loginButtonText: {
     color: 'white',
