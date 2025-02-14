@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,9 +10,9 @@ const HomeScreen = () => {
 
   const handleLogout = async () => {
     try {
-      // Use auth context's signOut method
       await signOut();
-      // No need to navigate manually as useProtectedRoute will handle it
+      // Add explicit navigation to ensure immediate redirection
+      router.replace('/(auth)/login');
     } catch (error) {
       console.error('Error during logout:', error);
       Alert.alert('Logout Failed', 'An error occurred while logging out. Please try again.');

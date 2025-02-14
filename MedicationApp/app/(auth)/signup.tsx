@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
-import { useAuth } from '../context/auth';
 
 const API_URL = 'http://localhost:5500/api/users'; // Replace with your actual API URL
 
@@ -19,7 +18,6 @@ const SignUpScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
-  const { signIn } = useAuth();
 
   const validateInputs = () => {
     if (!fullName || !email || !password || !confirmPassword) {
@@ -41,6 +39,14 @@ const SignUpScreen = () => {
     return true;
   };
 
+  const clearForm = () => {
+    setFullName('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setError('');
+  };
+
   const handleSignUp = async () => {
     try {
       setError('');
@@ -54,19 +60,21 @@ const SignUpScreen = () => {
         confirmPassword,
       });
 
-      if (response.status === 201 && response.data.token) {
-        // Extract user data from response
-        const userData = {
-          id: response.data.user.id,
-          email: response.data.user.email,
-          name: response.data.user.fullName,
-        };
+      if (response.status === 201) {
+        // Clear the form
+        clearForm();
         
-        // Sign in using the auth context
-        await signIn(response.data.token, userData);
-        
-        // Navigate to the main app
-        router.replace('/(tabs)/home');
+        // Show success message
+        Alert.alert(
+          'Success',
+          'Account created successfully! Please log in with your new credentials.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(auth)/login'),
+            },
+          ]
+        );
       }
     } catch (error) {
       setError(error.response?.data?.message || 'An error occurred during sign up');
@@ -181,7 +189,7 @@ const SignUpScreen = () => {
             <View style={styles.footer}>
               <Text style={styles.loginText}>
                 Already have an account?{' '}
-                <Link href="/login" asChild>
+                <Link href="/(auth)/login" asChild>
                   <Text style={styles.loginBold}>Log In</Text>
                 </Link>
               </Text>
