@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import AddMedicationForm from '../components/AddMedicationForm';
+import MedicationListView from '../components/MedicationListView';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -28,6 +29,7 @@ const HomeScreen = () => {
   const [userData, setUserData] = useState(null);
   const [medications, setMedications] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showMedicationList, setShowMedicationList] = useState(false);
   const [recentActivities, setRecentActivities] = useState([]);
 
   useEffect(() => {
@@ -181,7 +183,10 @@ const HomeScreen = () => {
           <Ionicons name="add-circle" size={32} color="#6C63FF" />
           <Text style={styles.actionText}>Add Medication</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionCard}>
+        <TouchableOpacity 
+          style={styles.actionCard}
+          onPress={() => setShowMedicationList(true)}
+        >
           <Ionicons name="calendar" size={32} color="#6C63FF" />
           <Text style={styles.actionText}>View Schedule</Text>
         </TouchableOpacity>
@@ -258,6 +263,25 @@ const HomeScreen = () => {
           />
         </View>
       </Modal>
+      <Modal
+        visible={showMedicationList}
+        animationType="slide"
+        onRequestClose={() => setShowMedicationList(false)}
+      >
+        <View style={styles.medicationListContainer}>
+          <View style={styles.medicationListHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowMedicationList(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.medicationListTitle}>Medication Schedule</Text>
+          </View>
+          <MedicationListView />
+        </View>
+      </Modal>
+
     </ScrollView>
   );
 };
@@ -369,6 +393,27 @@ const styles = StyleSheet.create({
   },
   checkButton: {
     padding: 10,
+  },
+  medicationListContainer: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  medicationListHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  medicationListTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 15,
+  },
+  closeButton: {
+    padding: 5,
   },
   activityCard: {
     backgroundColor: '#FFF',
