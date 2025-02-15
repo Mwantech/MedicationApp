@@ -7,14 +7,18 @@ import {
   ScrollView,
   Alert,
   Modal,
-  TextInput
+  TextInput,
+  Dimensions
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
 
 const MedicationListView = () => {
   const [medications, setMedications] = useState([]);
-  const [filter, setFilter] = useState('ongoing'); // ongoing, completed, paused
+  const [filter, setFilter] = useState('ongoing');
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedMedication, setSelectedMedication] = useState(null);
   const [editedName, setEditedName] = useState('');
@@ -25,6 +29,33 @@ const MedicationListView = () => {
   useEffect(() => {
     loadMedications();
   }, []);
+
+  const handleSaveEdit = async () => {
+    if (!editedName.trim()) {
+      Alert.alert('Error', 'Medication name is required');
+      return;
+    }
+
+    try {
+      const updatedMedications = medications.map(med =>
+        med.id === selectedMedication.id
+          ? {
+              ...med,
+              name: editedName.trim(),
+              dosage: editedDosage.trim(),
+              time: editedTime.trim(),
+              instructions: editedInstructions.trim(),
+            }
+          : med
+      );
+
+      await saveMedications(updatedMedications);
+      setShowEditModal(false);
+    } catch (error) {
+      console.error('Error saving medication:', error);
+      Alert.alert('Error', 'Failed to save medication changes');
+    }
+  };
 
   const loadMedications = async () => {
     try {
@@ -50,10 +81,15 @@ const MedicationListView = () => {
   };
 
   const handleStatusChange = async (medicationId, newStatus) => {
-    const updatedMedications = medications.map(med => 
-      med.id === medicationId ? { ...med, status: newStatus } : med
-    );
-    await saveMedications(updatedMedications);
+    try {
+      const updatedMedications = medications.map(med => 
+        med.id === medicationId ? { ...med, status: newStatus } : med
+      );
+      await saveMedications(updatedMedications);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      Alert.alert('Error', 'Failed to update medication status');
+    }
   };
 
   const handleDelete = async (medicationId) => {
@@ -66,8 +102,13 @@ const MedicationListView = () => {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const updatedMedications = medications.filter(med => med.id !== medicationId);
-            await saveMedications(updatedMedications);
+            try {
+              const updatedMedications = medications.filter(med => med.id !== medicationId);
+              await saveMedications(updatedMedications);
+            } catch (error) {
+              console.error('Error deleting medication:', error);
+              Alert.alert('Error', 'Failed to delete medication');
+            }
           }
         }
       ]
@@ -77,32 +118,26 @@ const MedicationListView = () => {
   const handleEdit = (medication) => {
     setSelectedMedication(medication);
     setEditedName(medication.name);
-    setEditedDosage(medication.dosage);
+    setEditedDosage(medication.dosage || '');
     setEditedTime(medication.time);
-    setEditedInstructions(medication.instructions);
+    setEditedInstructions(medication.instructions || '');
     setShowEditModal(true);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editedName.trim()) {
-      Alert.alert('Error', 'Medication name is required');
-      return;
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'completed': return ['#34D399', '#10B981'];
+      case 'paused': return ['#F59E0B', '#D97706'];
+      default: return ['#60A5FA', '#3B82F6'];
     }
+  };
 
-    const updatedMedications = medications.map(med =>
-      med.id === selectedMedication.id
-        ? {
-            ...med,
-            name: editedName.trim(),
-            dosage: editedDosage.trim(),
-            time: editedTime.trim(),
-            instructions: editedInstructions.trim(),
-          }
-        : med
-    );
-
-    await saveMedications(updatedMedications);
-    setShowEditModal(false);
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'completed': return 'checkmark-circle';
+      case 'paused': return 'pause-circle';
+      default: return 'time';
+    }
   };
 
   const filteredMedications = medications.filter(med => {
@@ -112,73 +147,99 @@ const MedicationListView = () => {
 
   return (
     <View style={styles.container}>
-      {/* Filter Buttons */}
+      {/* Header */}
+      <LinearGradient
+        colors={['#4F46E5', '#6366F1']}
+        style={styles.header}
+      >
+        <Text style={styles.headerTitle}>My Medications</Text>
+        <Text style={styles.headerSubtitle}>{filteredMedications.length} medications</Text>
+      </LinearGradient>
+
+      {/* Filter Pills */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === 'ongoing' && styles.activeFilter]}
-          onPress={() => setFilter('ongoing')}
-        >
-          <Text style={styles.filterText}>Ongoing</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === 'completed' && styles.activeFilter]}
-          onPress={() => setFilter('completed')}
-        >
-          <Text style={styles.filterText}>Completed</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === 'paused' && styles.activeFilter]}
-          onPress={() => setFilter('paused')}
-        >
-          <Text style={styles.filterText}>Paused</Text>
-        </TouchableOpacity>
+        {['ongoing', 'completed', 'paused'].map((filterType) => (
+          <TouchableOpacity
+            key={filterType}
+            style={[
+              styles.filterPill,
+              filter === filterType && styles.activeFilterPill
+            ]}
+            onPress={() => setFilter(filterType)}
+          >
+            <Ionicons
+              name={filter === filterType ? 'radio-button-on' : 'radio-button-off'}
+              size={16}
+              color={filter === filterType ? '#4F46E5' : '#6B7280'}
+              style={styles.filterIcon}
+            />
+            <Text style={[
+              styles.filterText,
+              filter === filterType && styles.activeFilterText
+            ]}>
+              {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Medications List */}
       <ScrollView style={styles.medicationList}>
         {filteredMedications.length === 0 ? (
           <View style={styles.emptyState}>
+            <Ionicons name="medical" size={48} color="#E5E7EB" />
             <Text style={styles.emptyStateText}>No {filter} medications</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Medications you add will appear here
+            </Text>
           </View>
         ) : (
           filteredMedications.map(medication => (
             <View key={medication.id} style={styles.medicationCard}>
+              <LinearGradient
+                colors={getStatusColor(medication.status)}
+                style={styles.statusIndicator}
+              >
+                <Ionicons
+                  name={getStatusIcon(medication.status)}
+                  size={20}
+                  color="white"
+                />
+              </LinearGradient>
+              
               <View style={styles.medicationInfo}>
                 <Text style={styles.medicationName}>{medication.name}</Text>
-                <Text style={styles.medicationDetails}>
-                  {medication.dosage} • {medication.time}
-                </Text>
+                <View style={styles.medicationMetaContainer}>
+                  <View style={styles.medicationMeta}>
+                    <Ionicons name="time-outline" size={14} color="#6B7280" />
+                    <Text style={styles.medicationMetaText}>{medication.time}</Text>
+                  </View>
+                  {medication.dosage && (
+                    <View style={styles.medicationMeta}>
+                      <Ionicons name="flask-outline" size={14} color="#6B7280" />
+                      <Text style={styles.medicationMetaText}>{medication.dosage}</Text>
+                    </View>
+                  )}
+                </View>
                 {medication.instructions && (
                   <Text style={styles.medicationInstructions}>
                     {medication.instructions}
                   </Text>
                 )}
               </View>
+
               <View style={styles.actionButtons}>
                 <TouchableOpacity
-                  style={styles.actionButton}
+                  style={[styles.actionButton, styles.editButton]}
                   onPress={() => handleEdit(medication)}
                 >
-                  <Ionicons name="pencil" size={20} color="#6C63FF" />
+                  <Ionicons name="pencil" size={18} color="#4F46E5" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.actionButton}
+                  style={[styles.actionButton, styles.deleteButton]}
                   onPress={() => handleDelete(medication.id)}
                 >
-                  <Ionicons name="trash" size={20} color="#FF6B6B" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleStatusChange(
-                    medication.id,
-                    medication.status === 'paused' ? 'ongoing' : 'paused'
-                  )}
-                >
-                  <Ionicons
-                    name={medication.status === 'paused' ? 'play' : 'pause'}
-                    size={20}
-                    color="#4A90E2"
-                  />
+                  <Ionicons name="trash" size={18} color="#EF4444" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -194,50 +255,75 @@ const MedicationListView = () => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Medication</Text>
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Medication Name"
-              value={editedName}
-              onChangeText={setEditedName}
-            />
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Dosage"
-              value={editedDosage}
-              onChangeText={setEditedDosage}
-            />
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Time"
-              value={editedTime}
-              onChangeText={setEditedTime}
-            />
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Instructions"
-              value={editedInstructions}
-              onChangeText={setEditedInstructions}
-              multiline
-            />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Medication</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowEditModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Medication Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter medication name"
+                value={editedName}
+                onChangeText={setEditedName}
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Dosage</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter dosage"
+                value={editedDosage}
+                onChangeText={setEditedDosage}
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Time</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter time"
+                value={editedTime}
+                onChangeText={setEditedTime}
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Instructions</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Enter instructions"
+                value={editedInstructions}
+                onChangeText={setEditedInstructions}
+                multiline
+                numberOfLines={3}
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => setShowEditModal(false)}
               >
-                <Text style={styles.buttonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
                 onPress={handleSaveEdit}
               >
-                <Text style={styles.buttonText}>Save</Text>
+                <Text style={styles.saveButtonText}>Save Changes</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -250,51 +336,83 @@ const MedicationListView = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F9FAFB',
+  },
+  header: {
+    padding: 20,
+    paddingTop: 60,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   filterContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 15,
-    backgroundColor: 'white',
-    borderRadius: 10,
-    margin: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 12,
   },
-  filterButton: {
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  activeFilter: {
-    backgroundColor: '#6C63FF',
+  activeFilterPill: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#4F46E5',
+  },
+  filterIcon: {
+    marginRight: 6,
   },
   filterText: {
-    color: '#333',
+    fontSize: 14,
     fontWeight: '500',
+    color: '#6B7280',
+  },
+  activeFilterText: {
+    color: '#4F46E5',
   },
   medicationList: {
-    flex: 1,
-    padding: 15,
+    padding: 20,
   },
   medicationCard: {
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 10,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+  },
+  statusIndicator: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   medicationInfo: {
     flex: 1,
@@ -302,84 +420,139 @@ const styles = StyleSheet.create({
   medicationName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#1F2937',
+    marginBottom: 4,
   },
-  medicationDetails: {
+  medicationMetaContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 4,
+  },
+  medicationMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  medicationMetaText: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    color: '#6B7280',
   },
   medicationInstructions: {
     fontSize: 14,
-    color: '#666',
+    color: '#6B7280',
     fontStyle: 'italic',
-    marginTop: 4,
   },
   actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    gap: 8,
   },
   actionButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  emptyState: {
-    flex: 1,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    borderWidth: 1,
+  },
+  editButton: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#4F46E5',
+  },
+  deleteButton: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#EF4444',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
   },
   emptyStateText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
     textAlign: 'center',
   },
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 20,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    marginBottom: 20,
-    color: '#333',
+    color: '#1F2937',
+  },
+  modalCloseButton: {
+    padding: 8,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#4B5563',
+    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
+    color: '#1F2937',
+    backgroundColor: '#F9FAFB',
+  },
+  textArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 24,
   },
   modalButton: {
     flex: 1,
-    padding: 15,
-    borderRadius: 10,
-    marginHorizontal: 5,
-  },
-  saveButton: {
-    backgroundColor: '#6C63FF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#F3F4F6',
   },
-  buttonText: {
-    color: 'white',
-    textAlign: 'center',
+  saveButton: {
+    backgroundColor: '#4F46E5',
+  },
+  cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#4B5563',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
   },
 });
 
