@@ -1,4 +1,3 @@
-
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -29,6 +28,13 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <MaterialIcons name="home" size={28} color={color} />, 
+        }}
+      />
+      <Tabs.Screen
+        name="scanner"
+        options={{
+          title: 'Scan',
+          tabBarIcon: ({ color }) => <MaterialIcons name="qr-code-scanner" size={28} color={color} />, 
         }}
       />
       <Tabs.Screen

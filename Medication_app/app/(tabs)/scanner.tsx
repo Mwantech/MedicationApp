@@ -5,10 +5,9 @@ import {
   View,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
+  Platform,
 } from 'react-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
-import { Camera } from 'expo-camera';
+import { Camera, CameraType, BarCodeScanningResult } from 'expo-camera';
 
 interface MedicationInfo {
   brandName: string;
@@ -25,18 +24,15 @@ const BarcodeScanner: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    requestCameraPermission();
+    (async () => {
+      if (Platform.OS !== 'web') {
+        const { status } = await Camera.requestCameraPermissionsAsync();
+        setHasPermission(status === 'granted');
+      } else {
+        setHasPermission(false); // Camera not supported on web
+      }
+    })();
   }, []);
-
-  const requestCameraPermission = async () => {
-    try {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    } catch (err) {
-      setError('Failed to request camera permission');
-      console.error('Camera permission error:', err);
-    }
-  };
 
   const fetchMedicationInfo = async (barcode: string): Promise<MedicationInfo> => {
     const response = await fetch(
@@ -58,12 +54,14 @@ const BarcodeScanner: React.FC = () => {
     };
   };
 
-  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = async (scanResult: BarCodeScanningResult) => {
+    const { type, data } = scanResult;
     setScanned(true);
     setLoading(true);
     setError(null);
 
     try {
+      console.log("Scanned barcode:", data);
       const medInfo = await fetchMedicationInfo(data);
       setMedicationInfo(medInfo);
     } catch (err) {
@@ -93,23 +91,32 @@ const BarcodeScanner: React.FC = () => {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>No access to camera</Text>
-        <TouchableOpacity style={styles.button} onPress={requestCameraPermission}>
-          <Text style={styles.buttonText}>Request Permission</Text>
-        </TouchableOpacity>
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity style={styles.button} onPress={() => Camera.requestCameraPermissionsAsync()}>
+            <Text style={styles.buttonText}>Request Permission</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <BarCodeScanner
-        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
-        style={styles.scanner}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.scanArea} />
-        </View>
-      </BarCodeScanner>
+      {Platform.OS !== 'web' ? (
+        <Camera
+          style={[styles.scanner, StyleSheet.absoluteFillObject]}
+          type={CameraType.back}
+          onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+          barCodeTypes={['qr', 'code39', 'code128', 'ean13', 'upc_e']}
+        />
+      ) : (
+        <Text style={styles.errorText}>Camera not supported on web</Text>
+      )}
+      
+      {/* Overlay - separate layer on top of scanner */}
+      <View style={styles.overlay}>
+        <View style={styles.scanArea} />
+      </View>
 
       {loading && (
         <View style={styles.loadingContainer}>
@@ -152,7 +159,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
