@@ -6,7 +6,7 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE medication_schedule (
+CREATE TABLE medication_schedule (  
     schedule_id INT PRIMARY KEY AUTO_INCREMENT,
     med_id INT NOT NULL,
     user_id INT NOT NULL,

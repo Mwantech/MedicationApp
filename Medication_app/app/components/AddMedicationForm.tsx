@@ -1,8 +1,22 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Platform, 
+  KeyboardAvoidingView,
+  ScrollView,
+  Alert,
+  TouchableWithoutFeedback,
+  Keyboard
+} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 
 const AddMedicationForm = ({ onSubmit, onClose }) => {
+  // State management
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -18,7 +32,7 @@ const AddMedicationForm = ({ onSubmit, onClose }) => {
 
   const handleSubmit = () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter medication name');
+      Alert.alert('Missing Information', 'Please enter medication name');
       return;
     }
 
@@ -36,308 +50,118 @@ const AddMedicationForm = ({ onSubmit, onClose }) => {
     setTime(new Date());
   };
 
+  // The main fix: use a simpler structure similar to the reference code
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Add New Medication</Text>
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Medication Name"
-        value={name}
-        onChangeText={setName}
-      />
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Dosage (e.g., 500mg)"
-        value={dosage}
-        onChangeText={setDosage}
-      />
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Instructions (e.g., Take with food)"
-        value={instructions}
-        onChangeText={setInstructions}
-        multiline
-      />
-
-      <TouchableOpacity 
-        style={styles.timeButton}
-        onPress={() => setShowTimePicker(true)}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      style={styles.keyboardView}
+    >
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.timeButtonText}>
-          Set Time: {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </Text>
-      </TouchableOpacity>
-
-      {showTimePicker && (
-        <DateTimePicker
-          value={time}
-          mode="time"
-          is24Hour={true}
-          display="default"
-          onChange={handleTimeChange}
-        />
-      )}
-
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={[styles.button, styles.cancelButton]} 
-          onPress={onClose}
-        >
-          <Text style={styles.buttonText}>Cancel</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.button, styles.submitButton]} 
-          onPress={handleSubmit}
-        >
-          <Text style={styles.buttonText}>Add Medication</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 20,
-    color: '#333',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-    fontSize: 16,
-  },
-  timeButton: {
-    backgroundColor: '#F5F5F5',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-  },
-  timeButtonText: {
-    fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  button: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 10,
-    marginHorizontal: 5,
-  },
-  submitButton: {
-    backgroundColor: '#6C63FF',
-  },
-  cancelButton: {
-    backgroundColor: '#FF6B6B',
-  },
-  buttonText: {
-    color: 'white',
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
-
-export default AddMedicationForm;
-
-
-
-
-
-//i will go on with this code
-
-/*
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Platform, 
-  KeyboardAvoidingView, 
-  ScrollView, 
-  Keyboard, 
-  TouchableWithoutFeedback,
-  Alert
-} from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-
-const AddMedicationForm = ({ onSubmit, onClose }) => {
-  const [medicationData, setMedicationData] = useState({
-    name: '',
-    dosage: '',
-    instructions: '',
-    time: new Date()
-  });
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [activeInput, setActiveInput] = useState(null);
-
-  const handleInputChange = (field, value) => {
-    setMedicationData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleTimeChange = (event, selectedTime) => {
-    setShowTimePicker(Platform.OS === 'ios');
-    if (selectedTime) {
-      setMedicationData(prev => ({
-        ...prev,
-        time: selectedTime
-      }));
-    }
-  };
-
-  const handleSubmit = () => {
-    if (!medicationData.name.trim()) {
-      Alert.alert('Missing Information', 'Please enter the medication name');
-      return;
-    }
-
-    const formattedData = {
-      name: medicationData.name.trim(),
-      dosage: medicationData.dosage.trim(),
-      instructions: medicationData.instructions.trim(),
-      time: medicationData.time.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: false 
-      })
-    };
-
-    onSubmit(formattedData);
-
-    // Reset form
-    setMedicationData({
-      name: '',
-      dosage: '',
-      instructions: '',
-      time: new Date()
-    });
-  };
-
-  const InputField = ({ label, field, placeholder, multiline, style }) => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <View style={styles.inputWrapper}>
-        <TextInput
-          style={[
-            styles.input, 
-            activeInput === field && styles.inputActive,
-            multiline && styles.multilineInput,
-            style
-          ]}
-          placeholder={placeholder}
-          value={medicationData[field]}
-          onChangeText={(value) => handleInputChange(field, value)}
-          multiline={multiline}
-          onFocus={() => setActiveInput(field)}
-          onBlur={() => setActiveInput(null)}
-          placeholderTextColor="#9EA0A4"
-        />
-      </View>
-    </View>
-  );
-
-  return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.container}>
-            <View style={styles.header}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <View style={styles.titleContainer}>
               <Text style={styles.title}>Add Medication</Text>
-              <Text style={styles.subtitle}>Enter your medication details below</Text>
+              <Text style={styles.subtitle}>Enter medication details below</Text>
             </View>
-
-            <InputField
-              label="Medication Name"
-              field="name"
-              placeholder="Enter medication name"
-            />
-
-            <InputField
-              label="Dosage"
-              field="dosage"
-              placeholder="e.g., 500mg"
-            />
-
-            <InputField
-              label="Instructions"
-              field="instructions"
-              placeholder="e.g., Take with food"
-              multiline
-            />
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Reminder Time</Text>
-              <TouchableOpacity 
-                style={[styles.timeButton, styles.inputWrapper]}
-                onPress={() => setShowTimePicker(true)}
-              >
-                <Text style={styles.timeButtonText}>
-                  {medicationData.time.toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {showTimePicker && (
-              <DateTimePicker
-                value={medicationData.time}
-                mode="time"
-                is24Hour={true}
-                display="spinner"
-                onChange={handleTimeChange}
-              />
-            )}
-
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity 
-                style={[styles.button, styles.cancelButton]} 
-                onPress={onClose}
-              >
-                <Text style={[styles.buttonText, styles.cancelButtonText]}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.button, styles.submitButton]} 
-                onPress={handleSubmit}
-              >
-                <Text style={styles.buttonText}>Save Medication</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={onClose}
+            >
+              <Ionicons name="close" size={24} color="#777" />
+            </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
+          
+          <View style={styles.divider} />
+          
+          <View style={styles.inputWrapper}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="medical-outline" size={20} color="#A0A0A0" />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Medication name"
+              placeholderTextColor="#9EA0A4"
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+          
+          <View style={styles.inputWrapper}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="flask-outline" size={20} color="#A0A0A0" />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Dosage (e.g., 500mg)"
+              placeholderTextColor="#9EA0A4"
+              value={dosage}
+              onChangeText={setDosage}
+            />
+          </View>
+          
+          <View style={styles.inputWrapper}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="information-circle-outline" size={20} color="#A0A0A0" />
+            </View>
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              placeholder="Instructions (e.g., Take with food)"
+              placeholderTextColor="#9EA0A4"
+              value={instructions}
+              onChangeText={setInstructions}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
+
+          <TouchableOpacity 
+            style={styles.timeSelector}
+            onPress={() => setShowTimePicker(true)}
+          >
+            <View style={styles.timeIcon}>
+              <Ionicons name="time-outline" size={20} color="#A0A0A0" />
+            </View>
+            <Text style={styles.timeText}>
+              {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            <View style={styles.chevronContainer}>
+              <Ionicons name="chevron-down" size={20} color="#A0A0A0" />
+            </View>
+          </TouchableOpacity>
+
+          {showTimePicker && (
+            <DateTimePicker
+              value={time}
+              mode="time"
+              is24Hour={false}
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleTimeChange}
+            />
+          )}
+
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity 
+              style={[styles.button, styles.cancelButton]} 
+              onPress={onClose}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.button, styles.submitButton]} 
+              onPress={handleSubmit}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.submitButtonText}>Save Medication</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -345,130 +169,160 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
+  scrollContainer: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 30,
+    justifyContent: 'center',
+    padding: 20,
   },
   container: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 24,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    width: '100%',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 24,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   header: {
-    marginBottom: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  titleContainer: {
+    flex: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#333',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#888',
     fontWeight: '400',
   },
-  inputContainer: {
-    marginBottom: 20,
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F6F6F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 8,
+  divider: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+    marginBottom: 24,
   },
   inputWrapper: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    flexDirection: 'row',
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 2,
-        },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderColor: '#E4E4E4',
+    borderRadius: 16,
+    backgroundColor: '#FAFAFA',
+    overflow: 'hidden',
+  },
+  iconContainer: {
+    width: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRightWidth: 1,
+    borderRightColor: '#E4E4E4',
   },
   input: {
-    padding: 16,
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
     fontSize: 16,
-    color: '#1A1A1A',
-  },
-  inputActive: {
-    borderColor: '#6C63FF',
-    borderWidth: 2,
+    color: '#333',
   },
   multilineInput: {
-    height: 100,
+    minHeight: 100,
     textAlignVertical: 'top',
+    paddingTop: 16,
   },
-  timeButton: {
-    padding: 16,
-  },
-  timeButtonText: {
-    fontSize: 16,
-    color: '#1A1A1A',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  buttonContainer: {
+  timeSelector: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 10,
+    alignItems: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E4E4E4',
+    borderRadius: 16,
+    backgroundColor: '#FAFAFA',
+    overflow: 'hidden',
+  },
+  timeIcon: {
+    width: 50,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRightWidth: 1,
+    borderRightColor: '#E4E4E4',
+  },
+  timeText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    paddingHorizontal: 12,
+  },
+  chevronContainer: {
+    paddingHorizontal: 16,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
   },
   button: {
     flex: 1,
-    padding: 16,
+    height: 56,
     borderRadius: 16,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 6,
   },
   submitButton: {
-    backgroundColor: '#6C63FF',
-    elevation: 2,
-    shadowColor: '#6C63FF',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    backgroundColor: '#5D5FEF',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#5D5FEF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
   cancelButton: {
     backgroundColor: '#F5F5F5',
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
-  buttonText: {
+  submitButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
   cancelButtonText: {
-    color: '#666666',
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
 export default AddMedicationForm;
-*/
-
