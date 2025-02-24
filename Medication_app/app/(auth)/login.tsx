@@ -16,7 +16,7 @@ import { Link } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = 'http://localhost:5500/api/users'; // Replace with your API URL
+const API_URL = 'http://192.168.116.93:5500/api/users'; // Replace with your API URL
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
