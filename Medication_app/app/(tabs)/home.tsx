@@ -29,6 +29,8 @@ const HomeScreen = () => {
   const [userData, setUserData] = useState(null);
   const [medications, setMedications] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [currentMedication, setCurrentMedication] = useState(null);
   const [showMedicationList, setShowMedicationList] = useState(false);
   const [recentActivities, setRecentActivities] = useState([]);
 
@@ -80,6 +82,8 @@ const HomeScreen = () => {
         dosage: medicationData.dosage,
         instructions: medicationData.instructions,
         createdAt: new Date().toISOString(),
+        active: true, // Add active status for pausing functionality
+        completed: false // Add completed status
       };
 
       // Update state
@@ -90,22 +94,38 @@ const HomeScreen = () => {
       await AsyncStorage.setItem('medications', JSON.stringify(updatedMedications));
 
       // Schedule notification
-      const [hours, minutes] = medicationData.time.split(':');
+      await scheduleNotification(newMedication);
+
+      Alert.alert('Success', 'Medication and reminder have been set');
+    } catch (error) {
+      console.error('Error adding medication:', error);
+      Alert.alert('Error', 'Failed to add medication');
+    }
+  };
+
+  const scheduleNotification = async (medication) => {
+    if (!medication.active || medication.completed) return;
+    
+    try {
+      // Cancel any existing notifications for this medication
+      await cancelNotification(medication.id);
+      
+      const [hours, minutes] = medication.time.split(':');
       const trigger = new Date();
       trigger.setHours(parseInt(hours, 10));
       trigger.setMinutes(parseInt(minutes, 10));
       trigger.setSeconds(0);
-
+      
       // If time has passed for today, schedule for tomorrow
       if (trigger < new Date()) {
         trigger.setDate(trigger.getDate() + 1);
       }
-
-      await Notifications.scheduleNotificationAsync({
+      
+      const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Medication Reminder',
-          body: `Time to take ${medicationData.name}${medicationData.dosage ? ` - ${medicationData.dosage}` : ''}`,
-          data: { medicationId: newMedication.id },
+          body: `Time to take ${medication.name}${medication.dosage ? ` - ${medication.dosage}` : ''}`,
+          data: { medicationId: medication.id },
         },
         trigger: {
           hour: parseInt(hours, 10),
@@ -113,11 +133,113 @@ const HomeScreen = () => {
           repeats: true,
         },
       });
-
-      Alert.alert('Success', 'Medication and reminder have been set');
+      
+      // Store notification ID for later cancellation if needed
+      const notificationsMap = JSON.parse(await AsyncStorage.getItem('medicationNotifications') || '{}');
+      notificationsMap[medication.id] = notificationId;
+      await AsyncStorage.setItem('medicationNotifications', JSON.stringify(notificationsMap));
     } catch (error) {
-      console.error('Error adding medication:', error);
-      Alert.alert('Error', 'Failed to add medication');
+      console.error('Error scheduling notification:', error);
+    }
+  };
+
+  const cancelNotification = async (medicationId) => {
+    try {
+      const notificationsMap = JSON.parse(await AsyncStorage.getItem('medicationNotifications') || '{}');
+      const notificationId = notificationsMap[medicationId];
+      
+      if (notificationId) {
+        await Notifications.cancelScheduledNotificationAsync(notificationId);
+        delete notificationsMap[medicationId];
+        await AsyncStorage.setItem('medicationNotifications', JSON.stringify(notificationsMap));
+      }
+    } catch (error) {
+      console.error('Error cancelling notification:', error);
+    }
+  };
+
+  const editMedication = (medication) => {
+    setCurrentMedication(medication);
+    setShowEditForm(true);
+  };
+
+  const updateMedication = async (updatedData) => {
+    try {
+      const updatedMedications = medications.map(med => 
+        med.id === currentMedication.id 
+          ? { ...med, ...updatedData } 
+          : med
+      );
+      
+      setMedications(updatedMedications);
+      await AsyncStorage.setItem('medications', JSON.stringify(updatedMedications));
+      
+      // Update notification if medication is active
+      const updatedMedication = updatedMedications.find(med => med.id === currentMedication.id);
+      if (updatedMedication) {
+        await scheduleNotification(updatedMedication);
+      }
+      
+      Alert.alert('Success', 'Medication has been updated');
+    } catch (error) {
+      console.error('Error updating medication:', error);
+      Alert.alert('Error', 'Failed to update medication');
+    }
+  };
+
+  const toggleMedicationStatus = async (medication, statusType) => {
+    try {
+      let updatedMedications;
+      
+      if (statusType === 'active') {
+        updatedMedications = medications.map(med => 
+          med.id === medication.id 
+            ? { ...med, active: !med.active } 
+            : med
+        );
+      } else if (statusType === 'completed') {
+        updatedMedications = medications.map(med => 
+          med.id === medication.id 
+            ? { ...med, completed: !med.completed, active: !med.completed ? med.active : false } 
+            : med
+        );
+      }
+      
+      setMedications(updatedMedications);
+      await AsyncStorage.setItem('medications', JSON.stringify(updatedMedications));
+      
+      const updatedMedication = updatedMedications.find(med => med.id === medication.id);
+      
+      if (updatedMedication.active && !updatedMedication.completed) {
+        await scheduleNotification(updatedMedication);
+      } else {
+        await cancelNotification(medication.id);
+      }
+      
+      Alert.alert('Success', statusType === 'active' 
+        ? `Medication ${updatedMedication.active ? 'activated' : 'paused'}`
+        : `Medication ${updatedMedication.completed ? 'marked as completed' : 'reactivated'}`
+      );
+    } catch (error) {
+      console.error(`Error toggling medication ${statusType}:`, error);
+      Alert.alert('Error', `Failed to ${statusType === 'active' ? 'pause/activate' : 'complete'} medication`);
+    }
+  };
+
+  const deleteMedication = async (medicationId) => {
+    try {
+      // Cancel any scheduled notifications for this medication
+      await cancelNotification(medicationId);
+      
+      // Remove medication from state and storage
+      const updatedMedications = medications.filter(med => med.id !== medicationId);
+      setMedications(updatedMedications);
+      await AsyncStorage.setItem('medications', JSON.stringify(updatedMedications));
+      
+      Alert.alert('Success', 'Medication has been deleted');
+    } catch (error) {
+      console.error('Error deleting medication:', error);
+      Alert.alert('Error', 'Failed to delete medication');
     }
   };
 
@@ -162,6 +284,9 @@ const HomeScreen = () => {
     }
   };
 
+  // Filter active medications for the main display
+  const activeMedications = medications.filter(med => med.active && !med.completed);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Header Section */}
@@ -195,15 +320,15 @@ const HomeScreen = () => {
       {/* Upcoming Medications Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Your Medications</Text>
-        {medications.length === 0 ? (
+        {activeMedications.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No medications added yet</Text>
+            <Text style={styles.emptyStateText}>No active medications</Text>
             <TouchableOpacity onPress={() => setShowAddForm(true)}>
-              <Text style={styles.emptyStateAction}>Add your first medication</Text>
+              <Text style={styles.emptyStateAction}>Add a medication</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          medications.map(medication => (
+          activeMedications.map(medication => (
             <View key={medication.id} style={styles.medicationCard}>
               <View style={styles.medicationIcon}>
                 <Ionicons name="medical" size={24} color="#6C63FF" />
@@ -215,12 +340,26 @@ const HomeScreen = () => {
                   <Text style={styles.medicationDosage}>{medication.dosage}</Text>
                 )}
               </View>
-              <TouchableOpacity 
-                style={styles.checkButton}
-                onPress={() => handleMedicationTaken(medication)}
-              >
-                <Ionicons name="checkmark-circle" size={24} color="#6C63FF" />
-              </TouchableOpacity>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity 
+                  style={[styles.iconButton, styles.checkButton]}
+                  onPress={() => handleMedicationTaken(medication)}
+                >
+                  <Ionicons name="checkmark-circle" size={24} color="#6C63FF" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.iconButton}
+                  onPress={() => editMedication(medication)}
+                >
+                  <Ionicons name="pencil" size={20} color="#6C63FF" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.iconButton}
+                  onPress={() => toggleMedicationStatus(medication, 'active')}
+                >
+                  <Ionicons name="pause-circle" size={20} color="#6C63FF" />
+                </TouchableOpacity>
+              </View>
             </View>
           ))
         )}
@@ -263,6 +402,33 @@ const HomeScreen = () => {
           />
         </View>
       </Modal>
+
+      {/* Edit Medication Modal */}
+      {currentMedication && (
+        <Modal
+          visible={showEditForm}
+          animationType="slide"
+          transparent={true}
+        >
+          <View style={styles.modalContainer}>
+            <AddMedicationForm
+              initialData={currentMedication}
+              isEditing={true}
+              onSubmit={(medicationData) => {
+                updateMedication(medicationData);
+                setShowEditForm(false);
+                setCurrentMedication(null);
+              }}
+              onClose={() => {
+                setShowEditForm(false);
+                setCurrentMedication(null);
+              }}
+            />
+          </View>
+        </Modal>
+      )}
+
+      {/* Medication List Modal */}
       <Modal
         visible={showMedicationList}
         animationType="slide"
@@ -278,10 +444,15 @@ const HomeScreen = () => {
             </TouchableOpacity>
             <Text style={styles.medicationListTitle}>Medication Schedule</Text>
           </View>
-          <MedicationListView />
+          <MedicationListView 
+            medications={medications}
+            onDelete={deleteMedication}
+            onEdit={editMedication}
+            onToggleStatus={toggleMedicationStatus}
+            onClose={() => setShowMedicationList(false)}
+          />
         </View>
       </Modal>
-
     </ScrollView>
   );
 };
@@ -391,8 +562,15 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 2,
   },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconButton: {
+    padding: 8,
+  },
   checkButton: {
-    padding: 10,
+    marginRight: 5,
   },
   medicationListContainer: {
     flex: 1,
