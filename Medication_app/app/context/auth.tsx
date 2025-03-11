@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useSegments } from 'expo-router';
 
-const API_URL = 'http://192.168.116.93:5500/api'; // Replace with your actual API URL
+const API_URL = 'http://192.168.19.185:5500/api'; // Replace with your actual API URL
 
 interface User {
   id: string;

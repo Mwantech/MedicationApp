@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { Camera, CameraType, BarCodeScanningResult } from 'expo-camera';
+import { Camera, CameraType, BarcodeScanningResult } from 'expo-camera';
 
 interface MedicationInfo {
   brandName: string;
@@ -54,7 +54,7 @@ const BarcodeScanner: React.FC = () => {
     };
   };
 
-  const handleBarCodeScanned = async (scanResult: BarCodeScanningResult) => {
+  const handleBarCodeScanned = async (scanResult: BarcodeScanningResult) => {
     const { type, data } = scanResult;
     setScanned(true);
     setLoading(true);
