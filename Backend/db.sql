@@ -39,13 +39,3 @@ CREATE TABLE medication_logs (
     FOREIGN KEY (med_id) REFERENCES medications(med_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
-
-CREATE TABLE medication_schedule (
-    schedule_id INT PRIMARY KEY AUTO_INCREMENT,
-    med_id INT NOT NULL,
-    user_id INT NOT NULL,
-    time TIME NOT NULL, -- Example: "08:00 AM"
-    taken BOOLEAN DEFAULT FALSE, -- True if user marks as taken
-    FOREIGN KEY (med_id) REFERENCES medications(med_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-);

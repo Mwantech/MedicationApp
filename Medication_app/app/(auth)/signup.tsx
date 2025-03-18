@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5500/api/users'; // Replace with your actual API URL
+import { API_URL } from '../api-config/api';
 
 const SignUpScreen = () => {
   const [fullName, setFullName] = useState('');
@@ -53,7 +53,7 @@ const SignUpScreen = () => {
       if (!validateInputs()) return;
 
       setIsLoading(true);
-      const response = await axios.post(`${API_URL}/signup`, {
+      const response = await axios.post(`${API_URL}/users/signup`, {
         fullName,
         email,
         password,
