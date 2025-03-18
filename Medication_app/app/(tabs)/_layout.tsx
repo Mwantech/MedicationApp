@@ -31,10 +31,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="scanner"
+        name="Schedule"
         options={{
-          title: 'Scan',
-          tabBarIcon: ({ color }) => <MaterialIcons name="qr-code-scanner" size={28} color={color} />, 
+          title: 'Schedule',
+          tabBarIcon: ({ color }) => <MaterialIcons name="calendar-today" size={28} color={color} />, 
+        }}
+      />
+      <Tabs.Screen
+        name="finder"
+        options={{
+          title: 'Pharmacy',
+          tabBarIcon: ({ color }) => <MaterialIcons name="local-pharmacy" size={28} color={color} />, 
         }}
       />
       <Tabs.Screen

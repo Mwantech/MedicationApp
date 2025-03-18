@@ -1,12 +1,71 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, View, Text, Pressable, Image, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Image, Dimensions, Animated } from 'react-native';
 import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
+// Words that will be animated/sliding
+const slidingWords = [
+  "Reliable",
+  "Simple",
+  "Effective",
+  "Personalized",
+  "Friendly"
+];
+
 const WelcomeScreen = () => {
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const slideAnim = useRef(new Animated.Value(width)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  // Animation function to slide in words
+  const animateNextWord = () => {
+    // Reset position
+    slideAnim.setValue(width);
+    opacityAnim.setValue(0);
+    
+    // Animate the slide-in
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
+    // After displaying for a while, slide out
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: -width,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        })
+      ]).start(() => {
+        // Move to next word
+        setCurrentWordIndex((prevIndex) => (prevIndex + 1) % slidingWords.length);
+      });
+    }, 2000); // Word display duration
+  };
+
+  // Start and manage the animation cycle
+  useEffect(() => {
+    const animationTimer = setTimeout(animateNextWord, 300);
+    return () => clearTimeout(animationTimer);
+  }, [currentWordIndex]);
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -16,9 +75,10 @@ const WelcomeScreen = () => {
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Background decoration elements */}
+      {/* Enhanced background decoration elements */}
       <View style={styles.decorationCircle1} />
       <View style={styles.decorationCircle2} />
+      <View style={styles.decorationCircle3} />
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
@@ -34,12 +94,27 @@ const WelcomeScreen = () => {
           {/* Title with modern typography */}
           <Text style={styles.title}>PillPal</Text>
 
+          {/* Animated sliding words */}
+          <View style={styles.slidingWordsContainer}>
+            <Animated.Text 
+              style={[
+                styles.slidingWord,
+                {
+                  transform: [{ translateX: slideAnim }],
+                  opacity: opacityAnim
+                }
+              ]}
+            >
+              {slidingWords[currentWordIndex]}
+            </Animated.Text>
+          </View>
+
           {/* Tagline with improved readability */}
           <Text style={styles.tagline}>
             Stay healthy and never miss a dose.{'\n'}Your personal medication companion.
           </Text>
 
-          {/* Get Started Button - Updated with improved design */}
+          {/* Get Started Button - Updated with improved design and fixed border radius */}
           <Link href="/signup" asChild>
             <Pressable 
               style={({ pressed }) => [
@@ -104,12 +179,21 @@ const styles = StyleSheet.create({
     bottom: 50,
     right: -30,
   },
+  decorationCircle3: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(85, 121, 255, 0.1)',
+    top: 150,
+    right: -20,
+  },
   logoContainer: {
     width: 140,
     height: 140,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   logo: {
     width: 120,
@@ -119,7 +203,20 @@ const styles = StyleSheet.create({
     fontSize: 44,
     fontWeight: '700',
     color: '#14142b',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  slidingWordsContainer: {
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  slidingWord: {
+    fontSize: 28,
+    fontWeight: '500',
+    color: '#5579ff',
     letterSpacing: 0.5,
   },
   tagline: {
@@ -131,7 +228,7 @@ const styles = StyleSheet.create({
   },
   getStartedButton: {
     width: '90%',
-    borderRadius: 16,
+    borderRadius: 28, // Updated border radius for a more modern look
     overflow: 'hidden',
     marginBottom: 24,
     shadowColor: '#5579ff',
@@ -143,6 +240,7 @@ const styles = StyleSheet.create({
   getStartedGradient: {
     paddingVertical: 18,
     alignItems: 'center',
+    borderRadius: 28, // Matching border radius for the gradient
   },
   buttonPressed: {
     opacity: 0.9,

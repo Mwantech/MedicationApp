@@ -16,7 +16,7 @@ import { Link } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = 'http://192.168.116.93:5500/api/users'; // Replace with your API URL
+import { API_URL } from '../api-config/api';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -48,7 +48,7 @@ const LoginScreen = () => {
       if (!validateForm()) return;
 
       setIsLoading(true);
-      const response = await fetch(`${API_URL}/login`, {
+      const response = await fetch(`${API_URL}/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
